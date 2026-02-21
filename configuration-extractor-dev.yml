@@ -6,7 +6,9 @@ namedValues: []
 products: []
 subscriptions: []
 tags: []
-policyFragments: []
+policyFragments:
+ - fragment1
+ - fragment2
 groups: []
 loggers: []
 diagnostics: []
