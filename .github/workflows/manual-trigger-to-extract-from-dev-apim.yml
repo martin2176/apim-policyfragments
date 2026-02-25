@@ -24,7 +24,6 @@ on:
         description: 'Reference(ticket) number to include in the title of PR and milestone.'     
         required: true
         type: string
-        default: 'RITM100000'
       BRANCH_TO_EXTRACT_ARTIFACTS:
         description: 'Enter the branch (head branch of PR) where artifacts should be extracted from APIM.'     
         required: true

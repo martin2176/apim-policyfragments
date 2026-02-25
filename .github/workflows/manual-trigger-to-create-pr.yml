@@ -8,7 +8,6 @@ on:
         description: 'Reference(ticket) number to include in the title of PR and milestone.'     
         required: true
         type: string
-        default: 'RITM100000'
       BASE_BRANCH_FOR_PR:
         description: 'Enter the base branch of PR (target branch).'     
         required: true
