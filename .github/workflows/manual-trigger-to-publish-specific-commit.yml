@@ -1,7 +1,9 @@
 name: Manual-Trigger-To-Publish-Specific-Commit
 run-name: Manual-Trigger-To-Publish-Specific-Commit
 #martin francis kallukalam
-#Use this with extreme caution as it will deploy everything in the artifacts repo
+#This will deploy artifacts which are delta between the specified commit and the previous commits
+#This should not be used as a regular deployment mechanism
+#This should only be used to redeploy any specific commit
 on:
   workflow_dispatch:
     inputs:
@@ -32,6 +34,18 @@ on:
        - "dev"
        - "test"
        - "prod"
+     REFERENCE_NUMBER:
+      description: |
+       Reference Number for this Deployment.
+       This will be used in Job Summary. If Deploying to Prod, this will be used to name API Revision as well.
+      required: true
+      type: string
+     API_NAME_FOR_REVISIONING:
+      description: |
+       Only Applicable for Prod. Enter Name of API to create a backup Revision.
+       Leave as default(null) if you are not deploying an API or you are not deploying into Prod.  
+      required: false
+      type: string
 concurrency:
  group: publish-to-${{ inputs.API_MANAGEMENT_ENVIRONMENT }}-apim-instance
  cancel-in-progress: false
@@ -48,7 +62,7 @@ jobs:
      with:
       CHANNEL_NAME: "TEST_DEPLOYMENT_CHANNEL"
       MESSAGE_TITLE: "Deployment waiting for Approval."
-      MESSAGE_BODY: "There is a Deployment to Test APIM Instance waiting for Approval.Access the Workflow at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      MESSAGE_BODY: "There is a Deployment to Test APIM Instance waiting for Approval.Access the Workflow at: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>"
 
     Notify-MS-Teams-Prod-Channel:
      name: Notify-MS-Teams-Prod-Channel
@@ -57,7 +71,7 @@ jobs:
      with:
       CHANNEL_NAME: "PROD_DEPLOYMENT_CHANNEL"
       MESSAGE_TITLE: "Deployment waiting for Approval."
-      MESSAGE_BODY: "There is a Deployment to Prod APIM Instance waiting for Approval.Access the Workflow at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"      
+      MESSAGE_BODY: "There is a Deployment to Prod APIM Instance waiting for Approval.Access the Workflow at: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>"      
 
     Publish-All-Artifacts-to-Dev-APIM:
      if: ${{ inputs.API_MANAGEMENT_ENVIRONMENT  == 'dev' }}
@@ -71,6 +85,7 @@ jobs:
       API_MANAGEMENT_ENVIRONMENT: dev
       BRANCH_TO_DEPLOY_FROM: ${{ inputs.BRANCH_TO_DEPLOY_FROM }} 
       BRANCH_FOR_PUBLISHER_CONFIG: main
+      REFERENCE_NUMBER: ${{ inputs.REFERENCE_NUMBER }}
       
     Publish-All-Artifacts-to-Test-APIM:
      if: ${{ inputs.API_MANAGEMENT_ENVIRONMENT  == 'test' }}
@@ -83,10 +98,20 @@ jobs:
       CONFIGURATION_YAML_PATH: configuration-publisher-test.yml
       API_MANAGEMENT_ENVIRONMENT: test
       BRANCH_TO_DEPLOY_FROM: ${{ inputs.BRANCH_TO_DEPLOY_FROM }} 
-      BRANCH_FOR_PUBLISHER_CONFIG: main  
+      BRANCH_FOR_PUBLISHER_CONFIG: main
+      REFERENCE_NUMBER: ${{ inputs.REFERENCE_NUMBER }}
+
+    Create-Backup-Revision-and-Delete-Older-Revisions:
+     if: ${{ inputs.API_MANAGEMENT_ENVIRONMENT  == 'prod' }}
+     uses: martin2176/ecs-apim-workflows/.github/workflows/publish-to-prod-api-revision-management.yml@main
+     with:
+      REVISION_ID: ${{ inputs.COMMITID_TO_PUBLISH }} 
+      API_MANAGEMENT_ENVIRONMENT: prod
+      API_NAME_FOR_REVISIONING: ${{ inputs.API_NAME_FOR_REVISIONING }}
       
     Publish-All-Artifacts-to-Prod-APIM:
-     if: ${{ inputs.API_MANAGEMENT_ENVIRONMENT  == 'prod' }}
+     needs: Create-Backup-Revision-and-Delete-Older-Revisions
+     if: ${{ !failure() && !cancelled() && inputs.API_MANAGEMENT_ENVIRONMENT  == 'prod' }}
      name: Publish-All-Artifacts-to-Prod-APIM
      uses: martin2176/ecs-apim-workflows/.github/workflows/publish-to-prod-apim-specific-commit-artifacts.yml@main
      with:
@@ -96,4 +121,5 @@ jobs:
       CONFIGURATION_YAML_PATH: configuration-publisher-prod.yml
       API_MANAGEMENT_ENVIRONMENT: prod
       BRANCH_TO_DEPLOY_FROM: ${{ inputs.BRANCH_TO_DEPLOY_FROM }} 
-      BRANCH_FOR_PUBLISHER_CONFIG: main  
+      BRANCH_FOR_PUBLISHER_CONFIG: main
+      REFERENCE_NUMBER: ${{ inputs.REFERENCE_NUMBER }}

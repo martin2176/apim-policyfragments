@@ -7,8 +7,7 @@ products: []
 subscriptions: []
 tags: []
 policyFragments:
- - fragment1
- - fragment2
+ - dumpheaders
 groups: []
 loggers: []
 diagnostics: []
